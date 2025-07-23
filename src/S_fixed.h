@@ -14,11 +14,11 @@ typedef int64_t fix32_t;
 #define FIX_ZERO (fix16_t)(0)
 
 #define int_to_fix(x) (fix16_t)((x) * FIX_ONE)
-#define float_to_fix(x) (fix16_t)((x) * (float)FIX_ONE)   // ! Unsafe !
-#define double_to_fix(x) (fix16_t)((x) * (double)FIX_ONE) // ! Unsafe !
+#define float_to_fix(x) (fix16_t)((x) * (float)FIX_ONE)   /* ! Unsafe ! */
+#define double_to_fix(x) (fix16_t)((x) * (double)FIX_ONE) /* ! Unsafe ! */
 #define fix_to_int(x) (int)((fix16_t)(x) / FIX_ONE)
-#define fix_to_float(x) (float)((float)(x) / (float)(FIX_ONE))     // ! Unsafe !
-#define fix_to_double(x) (double)((double)(x) / (double)(FIX_ONE)) // ! Unsafe !
+#define fix_to_float(x) (float)((float)(x) / (float)(FIX_ONE))     /* ! Unsafe ! */
+#define fix_to_double(x) (double)((double)(x) / (double)(FIX_ONE)) /* ! Unsafe ! */
 
 #define fix_add(a, b) ((fix16_t)(a) + (fix16_t)(b))
 #define fix_sub(a, b) ((fix16_t)(a) - (fix16_t)(b))
