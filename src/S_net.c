@@ -1,16 +1,12 @@
 #include <stdbool.h>
-#include <stdio.h>
 
 #pragma warning(push, 0)
 #define ENET_IMPLEMENTATION
 #include <enet.h>
 #pragma warning(pop)
 
+#include "S_log.h"
 #include "S_net.h"
-
-#define INFO(fmt, ...)                                                                                                 \
-    printf(fmt "\n", ##__VA_ARGS__);                                                                                   \
-    fflush(stdout);
 
 enum PacketTypes {
     NPT_HOST_ACCEPT_PEER = 1,
@@ -64,8 +60,7 @@ void net_update() {
                     return;
                 }
 
-                printf("Server lost peer %p", event.peer);
-                fflush(stdout);
+                INFO("Server lost peer %p", event.peer);
                 break;
             }
 
