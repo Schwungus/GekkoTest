@@ -11,7 +11,7 @@ enum PacketTypes {
 };
 
 struct Network {
-    bool active, disconnecting;
+    bool active;
 
     ENetAddress address;
     ENetHost* host;
@@ -19,12 +19,6 @@ struct Network {
 };
 
 static struct Network network = {0};
-
-static enum PacketTypes read_packet_type(enet_uint8** data) {
-    enum PacketTypes result = *((enum PacketTypes*)data);
-    *data += sizeof(enum PacketTypes);
-    return result;
-}
 
 void net_init() {
     enet_initialize();
@@ -65,7 +59,7 @@ void net_update() {
             case ENET_EVENT_TYPE_RECEIVE: {
                 INFO("Client got packet %p", event.packet);
 
-                if (network.disconnecting || event.packet->dataLength < 1) {
+                if (event.packet->dataLength < 1) {
                     enet_packet_destroy(event.packet);
                     break;
                 }
@@ -102,7 +96,6 @@ void net_host(uint16_t port) {
     network.peer = NULL;
 
     network.active = true;
-    network.disconnecting = false;
 }
 
 void net_connect(const char* ip, uint16_t port) {
@@ -120,12 +113,11 @@ void net_connect(const char* ip, uint16_t port) {
     }
 
     network.active = false;
-    network.disconnecting = false;
 }
 
 void net_disconnect() {
     if (network.peer != NULL) {
-        enet_peer_disconnect(network.peer, 0);
+        enet_peer_disconnect_now(network.peer, 0);
         network.peer = NULL;
     }
     if (network.host != NULL) {
@@ -133,15 +125,6 @@ void net_disconnect() {
         network.host = NULL;
     }
     network.active = false;
-}
-
-void net_try_disconnect() {
-    if (network.peer == NULL) {
-        net_disconnect();
-    } else if (!network.disconnecting) {
-        enet_peer_disconnect(network.peer, 0);
-        network.disconnecting = true;
-    }
 }
 
 bool net_exists() {

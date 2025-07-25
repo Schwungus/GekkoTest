@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
                     net_connect("localhost", 6969);
             } else if (net_connected()) {
                 if (IsKeyPressed(KEY_D))
-                    net_try_disconnect();
+                    net_disconnect();
             }
         }
 

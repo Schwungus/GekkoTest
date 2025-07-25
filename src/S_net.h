@@ -10,7 +10,6 @@ void net_teardown();
 void net_host(uint16_t);
 void net_connect(const char*, uint16_t);
 void net_disconnect();
-void net_try_disconnect();
 
 bool net_exists();
 bool net_connected();
