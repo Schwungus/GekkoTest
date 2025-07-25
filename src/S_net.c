@@ -1,9 +1,7 @@
 #include <stdbool.h>
 
-#pragma warning(push, 0)
 #define ENET_IMPLEMENTATION
 #include <enet.h>
-#pragma warning(pop)
 
 #include "S_log.h"
 #include "S_net.h"
@@ -36,7 +34,7 @@ void net_update() {
     if (network.host == NULL)
         return;
     ENetEvent event;
-    if (enet_host_service(network.host, &event, 1) > 0)
+    while (enet_host_service(network.host, &event, 1) > 0)
         switch (event.type) {
             default:
                 break;
