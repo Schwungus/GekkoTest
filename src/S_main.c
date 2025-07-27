@@ -1,6 +1,7 @@
 #include <raylib.h>
+#define FIX_IMPLEMENTATION
+#include <S_fixed.h>
 
-#include "S_fixed.h"
 #include "S_log.h"
 #include "S_net.h"
 
@@ -24,20 +25,20 @@ int main(int argc, char* argv[]) {
         fix_to_double(FIX_PI), fix_to_double(FIX_DOUBLE_PI)
     );
     INFO();
-    INFO("03. 4 + 9 = %i", fix_to_int(fix_add(int_to_fix(4), int_to_fix(9))));
-    INFO("04. 5 - 8 = %i", fix_to_int(fix_sub(int_to_fix(5), int_to_fix(8))));
-    INFO("05. 6 * 7 = %i", fix_to_int(fix_mul(int_to_fix(6), int_to_fix(7))));
-    INFO("06. 7 / 6 = %.5f", fix_to_double(fix_div(int_to_fix(7), int_to_fix(6))));
+    INFO("03. 4 + 9 = %i", fix_to_int(fix_add(fix_from_int(4), fix_from_int(9))));
+    INFO("04. 5 - 8 = %i", fix_to_int(fix_sub(fix_from_int(5), fix_from_int(8))));
+    INFO("05. 6 * 7 = %i", fix_to_int(fix_mul(fix_from_int(6), fix_from_int(7))));
+    INFO("06. 7 / 6 = %.5f", fix_to_double(fix_div(fix_from_int(7), fix_from_int(6))));
     INFO();
-    INFO("07. 9 / 2 = %.1f", fix_to_double(fix_half(int_to_fix(9))));
-    INFO("08. 9 * 2 = %i", fix_to_int(fix_double(int_to_fix(9))));
-    INFO("09. frac(127.0509) = %.4f", fix_to_double(fix_frac(double_to_fix(127.0509))));
-    INFO("10. floor(127.0509) = %.4f", fix_to_double(fix_floor(double_to_fix(127.0509))));
-    INFO("11. ceil(127.0509) = %.4f", fix_to_double(fix_ceil(double_to_fix(127.0509))));
-    INFO("12. |-123.123| = %.3f", fix_to_double(fix_abs(double_to_fix(123.123))));
+    INFO("07. 9 / 2 = %.1f", fix_to_double(fix_half(fix_from_int(9))));
+    INFO("08. 9 * 2 = %i", fix_to_int(fix_double(fix_from_int(9))));
+    INFO("09. frac(127.0509) = %.4f", fix_to_double(fix_frac(fix_from_double(127.0509))));
+    INFO("10. floor(127.0509) = %.4f", fix_to_double(fix_floor(fix_from_double(127.0509))));
+    INFO("11. ceil(127.0509) = %.4f", fix_to_double(fix_ceil(fix_from_double(127.0509))));
+    INFO("12. |-123.123| = %.3f", fix_to_double(fix_abs(fix_from_double(-123.123))));
     INFO();
-    INFO("13. 9 ^ 2 = %i", fix_to_int(fix_sqr(int_to_fix(9))));
-    INFO("14. sqrt(81) = %i", fix_to_int(fix_sqrt(int_to_fix(81))));
+    INFO("13. 9 ^ 2 = %i", fix_to_int(fix_sqr(fix_from_int(9))));
+    INFO("14. sqrt(81) = %i", fix_to_int(fix_sqrt(fix_from_int(81))));
     INFO();
 
     const fix16_t angle = FIX_QUARTER_PI;
@@ -63,9 +64,9 @@ int main(int argc, char* argv[]) {
         if (game == NULL) {
             if (!net_exists()) {
                 if (IsKeyPressed(KEY_H))
-                    net_host(6969);
+                    net_host(8378);
                 else if (IsKeyPressed(KEY_C))
-                    net_connect("localhost", 6969);
+                    net_connect("127.0.0.1", 8378);
             } else if (net_connected()) {
                 if (IsKeyPressed(KEY_D))
                     net_disconnect();

@@ -10,3 +10,5 @@
 
 #define LOG(level, ...) _LOG(level, __FILE__, __LINE__, __VA_ARGS__)
 #define INFO(...) LOG("INFO", __VA_ARGS__)
+#define WARN(...) LOG("WARN", __VA_ARGS__)
+#define WTF(...) LOG("ERROR", __VA_ARGS__)

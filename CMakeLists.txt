@@ -35,7 +35,16 @@ FetchContent_Declare(
     GIT_TAG v2.6.5)
 FetchContent_MakeAvailable(enet)
 
-set(LIBS raylib enet::enet_static)
+# S_fixed
+set(S_FIXED_BUILD_TEST OFF)
+
+FetchContent_Declare(
+    S_fixed
+    GIT_REPOSITORY https://github.com/Schwungus/S_fixed.git
+    GIT_TAG master)
+FetchContent_MakeAvailable(S_fixed)
+
+set(LIBS raylib enet::enet_static S_fixed)
 
 # Build
 set(SOURCE_DIR ${CMAKE_SOURCE_DIR}/src)
