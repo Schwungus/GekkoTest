@@ -1,3 +1,8 @@
+#ifdef _MSC_VER
+#define _CRTDBG_MAP_ALLOC
+#include <crtdbg.h>
+#endif
+
 #include <SDL3/SDL_main.h>
 
 #include <SDL3/SDL.h>
@@ -5,14 +10,19 @@
 #include <S_fixed.h>
 #include <gekkonet.h>
 
+#define INFO(...) SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, ##__VA_ARGS__)
+
 #define FATAL(...)                                                                                                     \
     do {                                                                                                               \
         SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, ##__VA_ARGS__);                                                  \
         exit(1);                                                                                                       \
     } while (0)
 
+#define MAX_PLAYERS 4
+
 struct GameState {
-    fix16_t pos[2][2], vel[2][2];
+    bool active[MAX_PLAYERS];
+    fix16_t pos[MAX_PLAYERS][2], vel[MAX_PLAYERS][2];
 };
 
 struct GameInput {
@@ -55,40 +65,87 @@ void load_state(struct GameState* state, GekkoGameEvent* event) {
     SDL_memcpy(state, event->data.load.state, sizeof(struct GameState));
 }
 
-void tick_state(struct GameState* state, struct GameInput inputs[2]) {
-    for (size_t i = 0; i < 2; i++) {
-        state->vel[i][0] = fix_mul(state->vel[i][0], 58578);
-        state->vel[i][1] = fix_mul(state->vel[i][1], 58578);
-        state->vel[i][0] =
-            fix_add(state->vel[i][0], fix_from_int(inputs[i].input.move.left - inputs[i].input.move.right));
-        state->vel[i][1] = fix_add(state->vel[i][1], fix_from_int(inputs[i].input.move.up - inputs[i].input.move.down));
+void tick_state(struct GameState* state, struct GameInput inputs[MAX_PLAYERS]) {
+    for (size_t i = 0; i < MAX_PLAYERS; i++) {
+        if (!state->active[i])
+            continue;
+        state->vel[i][0] = fix_add(
+            fix_mul(state->vel[i][0], 0x0000E666),
+            fix_from_int((int8_t)(inputs[i].input.move.left - inputs[i].input.move.right))
+        );
+        state->vel[i][1] = fix_add(
+            fix_mul(state->vel[i][1], 0x0000E666),
+            fix_from_int((int8_t)(inputs[i].input.move.up - inputs[i].input.move.down))
+        );
 
-        state->pos[i][0] = fix_clamp(fix_add(state->pos[i][0], state->vel[i][0]), FIX_ZERO, fix_from_int(640));
-        state->pos[i][1] = fix_clamp(fix_add(state->pos[i][1], state->vel[i][1]), FIX_ZERO, fix_from_int(480));
+        state->pos[i][0] = fix_clamp(fix_add(state->pos[i][0], state->vel[i][0]), FIX_ZERO, fix_from_int(640L));
+        state->pos[i][1] = fix_clamp(fix_add(state->pos[i][1], state->vel[i][1]), FIX_ZERO, fix_from_int(480L));
     }
 }
 
 void draw_state(SDL_Renderer* renderer, struct GameState* state) {
-    for (size_t i = 0; i < 2; i++) {
-        const float x = fix_to_float(state->pos[i][0]);
-        const float y = fix_to_float(state->pos[i][1]);
-        SDL_SetRenderDrawColor(renderer, 255, 255, i * 255, 255);
-        SDL_RenderFillRect(renderer, &(SDL_FRect){x - 16, y - 16, 32, 32});
+    for (size_t i = 0; i < MAX_PLAYERS; i++) {
+        if (!state->active[i])
+            continue;
+        switch (i) {
+            default:
+                break;
+            case 0:
+                SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+                break;
+            case 1:
+                SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
+                break;
+            case 2:
+                SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+                break;
+            case 3:
+                SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+                break;
+        }
+        SDL_RenderFillRect(
+            renderer, &(SDL_FRect){fix_to_float(state->pos[i][0]) - 16, fix_to_float(state->pos[i][1]) - 16, 32, 32}
+        );
     }
 }
 
 int main(int argc, char** argv) {
-    int local_player = 0;
-    int local_port = 6969;
-    char* ip = "127.0.0.1:6700";
+#ifdef _MSC_VER
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF);
 
-    if (argc > 3) {
-        local_player = SDL_atoi(argv[1]);
-        local_port = SDL_atoi(argv[2]);
-        ip = argv[3];
+    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDOUT);
+    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDOUT);
+    _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDOUT);
+#endif
+
+    int local_port = 6969;
+    int local_player = 0;
+    int num_players = 2;
+    const char* ip[MAX_PLAYERS] = {NULL, "127.0.0.1:6700"};
+
+    if (argc > 1) {
+        size_t i = 0;
+        num_players = SDL_strtol(argv[++i], NULL, 0);
+        if (num_players < 1 || num_players > MAX_PLAYERS)
+            FATAL("Player amount must be between 1 and %i", MAX_PLAYERS);
+        if (argc < 2 + num_players)
+            FATAL("Gimme all the IPs");
+        for (size_t j = 0; j < num_players; j++) {
+            char* player = argv[++i];
+            if (SDL_strlen(player) <= 5) {
+                local_port = SDL_strtol(player, NULL, 0);
+                local_player = (int)j;
+                ip[j] = NULL;
+            } else {
+                ip[j] = player;
+            }
+        }
     }
 
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Player: %i, port: %i, IP: %s", local_player, local_port, ip);
+    INFO("Playing as player %i (port %i)", local_player, local_port);
 
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD | SDL_INIT_EVENTS))
         FATAL("SDL_Init fail: %s", SDL_GetError());
@@ -99,16 +156,12 @@ int main(int argc, char** argv) {
     SDL_Renderer* renderer = SDL_CreateRenderer(window, NULL);
     if (renderer == NULL)
         FATAL("SDL_CreateRenderer fail: %s", SDL_GetError());
-    SDL_SetRenderTarget(renderer, NULL);
-    SDL_SetRenderScale(renderer, 1, 1);
-    SDL_SetRenderViewport(renderer, &(SDL_Rect){0, 0, 640, 480});
-    SDL_SetRenderClipRect(renderer, &(SDL_Rect){0, 0, 640, 480});
 
     GekkoSession* session = NULL;
     if (!gekko_create(&session))
         FATAL("gekko_create fail");
     GekkoConfig config = {0};
-    config.num_players = 2;
+    config.num_players = num_players;
     config.max_spectators = 0;
     config.input_prediction_window = 3;
     config.state_size = sizeof(struct GameState);
@@ -117,22 +170,22 @@ int main(int argc, char** argv) {
     gekko_start(session, &config);
     gekko_net_adapter_set(session, gekko_default_adapter(local_port));
 
-    if (local_player <= 0) {
-        local_player = gekko_add_actor(session, LocalPlayer, NULL);
-        GekkoNetAddress address = {(void*)ip, SDL_strlen(ip)};
-        gekko_add_actor(session, RemotePlayer, &address);
-    } else {
-        GekkoNetAddress address = {(void*)ip, SDL_strlen(ip)};
-        gekko_add_actor(session, RemotePlayer, &address);
-        local_player = gekko_add_actor(session, LocalPlayer, NULL);
+    for (size_t i = 0; i < num_players; i++) {
+        if (ip[i] == NULL)
+            gekko_add_actor(session, LocalPlayer, NULL);
+        else
+            gekko_add_actor(session, RemotePlayer, &((GekkoNetAddress){(void*)ip[i], SDL_strlen(ip[i])}));
     }
-    gekko_set_local_delay(session, local_player, 3);
+    if (num_players > 1)
+        gekko_set_local_delay(session, local_player, 3);
 
-    struct GameState state = {
-        {{fix_from_int(320), fix_from_int(240)}, {fix_from_int(320), fix_from_int(240)}},
-        {{FIX_ZERO, FIX_ZERO}, {FIX_ZERO, FIX_ZERO}}
-    };
-    struct GameInput inputs[2] = {0};
+    struct GameState state = {0};
+    for (size_t i = 0; i < num_players; i++) {
+        state.active[i] = true;
+        state.pos[i][0] = fix_from_int(320);
+        state.pos[i][1] = fix_from_int(240);
+    }
+    struct GameInput inputs[MAX_PLAYERS] = {0};
 
     uint64_t last_time = 0;
     float ticks = 0;
@@ -152,7 +205,7 @@ int main(int argc, char** argv) {
 
         const uint64_t current_time = SDL_GetTicks();
         ticks +=
-            (float)(current_time - last_time) * ((float)((gekko_frames_ahead(session) >= 0.75f) ? 61 : 60) / 1000.0f);
+            (float)(current_time - last_time) * ((float)((gekko_frames_ahead(session) >= 0.75f) ? 51 : 50) / 1000.0f);
         last_time = current_time;
 
         gekko_network_poll(session);
@@ -185,7 +238,7 @@ int main(int argc, char** argv) {
 
                     case PlayerConnected: {
                         struct Connected connect = event->data.connected;
-                        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Player %i connected", connect.handle);
+                        INFO("Player %i connected", connect.handle);
                         break;
                     }
 
@@ -211,8 +264,8 @@ int main(int argc, char** argv) {
                         load_state(&state, event);
                         break;
                     case AdvanceEvent: {
-                        inputs[0].input.value = event->data.adv.inputs[0];
-                        inputs[1].input.value = event->data.adv.inputs[1];
+                        for (size_t j = 0; j < num_players; j++)
+                            inputs[j].input.value = event->data.adv.inputs[j];
                         tick = event->data.adv.frame;
                         tick_state(&state, inputs);
                         break;
@@ -224,7 +277,7 @@ int main(int argc, char** argv) {
         }
 
         // draw the state every iteration
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 128);
         SDL_RenderClear(renderer);
         draw_state(renderer, &state);
         SDL_RenderPresent(renderer);
@@ -234,6 +287,10 @@ int main(int argc, char** argv) {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
+
+#ifdef _MSC_VER
+    _CrtDumpMemoryLeaks();
+#endif
 
     return 0;
 }
