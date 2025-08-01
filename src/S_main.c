@@ -69,17 +69,13 @@ void tick_state(struct GameState* state, struct GameInput inputs[MAX_PLAYERS]) {
     for (size_t i = 0; i < MAX_PLAYERS; i++) {
         if (!state->active[i])
             continue;
-        state->vel[i][0] = fix_add(
-            fix_mul(state->vel[i][0], 0x0000E666),
-            fix_from_int((int8_t)(inputs[i].input.move.left - inputs[i].input.move.right))
-        );
-        state->vel[i][1] = fix_add(
-            fix_mul(state->vel[i][1], 0x0000E666),
-            fix_from_int((int8_t)(inputs[i].input.move.up - inputs[i].input.move.down))
-        );
+        state->vel[i][0] =
+            Fadd(Fmul(state->vel[i][0], 0x0000E666), FfInt(inputs[i].input.move.left - inputs[i].input.move.right));
+        state->vel[i][1] =
+            Fadd(Fmul(state->vel[i][1], 0x0000E666), FfInt(inputs[i].input.move.up - inputs[i].input.move.down));
 
-        state->pos[i][0] = fix_clamp(fix_add(state->pos[i][0], state->vel[i][0]), FIX_ZERO, fix_from_int(640L));
-        state->pos[i][1] = fix_clamp(fix_add(state->pos[i][1], state->vel[i][1]), FIX_ZERO, fix_from_int(480L));
+        state->pos[i][0] = Fclamp(Fadd(state->pos[i][0], state->vel[i][0]), FxZero, FfInt(640L));
+        state->pos[i][1] = Fclamp(Fadd(state->pos[i][1], state->vel[i][1]), FxZero, FfInt(480L));
     }
 }
 
@@ -104,7 +100,7 @@ void draw_state(SDL_Renderer* renderer, struct GameState* state) {
                 break;
         }
         SDL_RenderFillRect(
-            renderer, &(SDL_FRect){fix_to_float(state->pos[i][0]) - 16, fix_to_float(state->pos[i][1]) - 16, 32, 32}
+            renderer, &(SDL_FRect){FtFloat(state->pos[i][0]) - 16, FtFloat(state->pos[i][1]) - 16, 32, 32}
         );
     }
 }
@@ -182,8 +178,8 @@ int main(int argc, char** argv) {
     struct GameState state = {0};
     for (size_t i = 0; i < num_players; i++) {
         state.active[i] = true;
-        state.pos[i][0] = fix_from_int(320);
-        state.pos[i][1] = fix_from_int(240);
+        state.pos[i][0] = FfInt(320);
+        state.pos[i][1] = FfInt(240);
     }
     struct GameInput inputs[MAX_PLAYERS] = {0};
 
