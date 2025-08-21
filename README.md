@@ -1,4 +1,4 @@
-# lockstep
+# GekkoTest
 
 Rollback prototype in C using SDL3 and GekkoNet.
 
