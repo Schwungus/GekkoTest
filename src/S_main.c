@@ -25,39 +25,16 @@ struct GameState {
     fix16_t pos[MAX_PLAYERS][2], vel[MAX_PLAYERS][2];
 };
 
-struct GameInput {
-    union UGameInput {
-        struct UGameInputMove {
-            char up : 1;
-            char down : 1;
-            char left : 1;
-            char right : 1;
-        } move;
-        unsigned char value;
-    } input;
+enum GameInput {
+    GI_UP = 1 << 0,
+    GI_LEFT = 1 << 1,
+    GI_DOWN = 1 << 2,
+    GI_RIGHT = 1 << 3,
 };
-
-uint32_t fletcher32(const uint16_t* data, size_t len) {
-    uint32_t c0, c1;
-    len = (len + 1) & ~1;
-    for (c0 = c1 = 0; len > 0;) {
-        size_t blocklen = len;
-        if (blocklen > 720)
-            blocklen = 720;
-        len -= blocklen;
-        do {
-            c0 = c0 + *data++;
-            c1 = c1 + c0;
-        } while ((blocklen -= 2));
-        c0 = c0 % 65535;
-        c1 = c1 % 65535;
-    }
-    return (c1 << 16 | c0);
-}
 
 void save_state(struct GameState* state, GekkoGameEvent* event) {
     *event->data.save.state_len = sizeof(struct GameState);
-    *event->data.save.checksum = fletcher32((uint16_t*)state, sizeof(struct GameState));
+    *event->data.save.checksum = SDL_crc32(0, state, sizeof(struct GameState));
     SDL_memcpy(event->data.save.state, state, sizeof(struct GameState));
 }
 
@@ -65,14 +42,18 @@ void load_state(struct GameState* state, GekkoGameEvent* event) {
     SDL_memcpy(state, event->data.load.state, sizeof(struct GameState));
 }
 
-void tick_state(struct GameState* state, struct GameInput inputs[MAX_PLAYERS]) {
+void tick_state(struct GameState* state, enum GameInput inputs[MAX_PLAYERS]) {
     for (size_t i = 0; i < MAX_PLAYERS; i++) {
-        if (!state->active[i])
+        if (!(state->active[i]))
             continue;
-        state->vel[i][0] =
-            Fadd(Fmul(state->vel[i][0], 0x0000E666), FfInt(inputs[i].input.move.left - inputs[i].input.move.right));
-        state->vel[i][1] =
-            Fadd(Fmul(state->vel[i][1], 0x0000E666), FfInt(inputs[i].input.move.up - inputs[i].input.move.down));
+        state->vel[i][0] = Fadd(
+            Fmul(state->vel[i][0], 0x0000E666),
+            FfInt((int8_t)((inputs[i] & GI_RIGHT) == GI_RIGHT) - (int8_t)((inputs[i] & GI_LEFT) == GI_LEFT))
+        );
+        state->vel[i][1] = Fadd(
+            Fmul(state->vel[i][1], 0x0000E666),
+            FfInt((int8_t)((inputs[i] & GI_DOWN) == GI_DOWN) - (int8_t)((inputs[i] & GI_UP) == GI_UP))
+        );
 
         state->pos[i][0] = Fclamp(Fadd(state->pos[i][0], state->vel[i][0]), FxZero, FfInt(640L));
         state->pos[i][1] = Fclamp(Fadd(state->pos[i][1], state->vel[i][1]), FxZero, FfInt(480L));
@@ -159,9 +140,9 @@ int main(int argc, char** argv) {
     GekkoConfig config = {0};
     config.num_players = num_players;
     config.max_spectators = 0;
-    config.input_prediction_window = 3;
+    config.input_prediction_window = 8;
     config.state_size = sizeof(struct GameState);
-    config.input_size = sizeof(struct GameInput);
+    config.input_size = sizeof(enum GameInput);
     config.desync_detection = true;
     gekko_start(session, &config);
     gekko_net_adapter_set(session, gekko_default_adapter(local_port));
@@ -173,7 +154,7 @@ int main(int argc, char** argv) {
             gekko_add_actor(session, RemotePlayer, &((GekkoNetAddress){(void*)ip[i], SDL_strlen(ip[i])}));
     }
     if (num_players > 1)
-        gekko_set_local_delay(session, local_player, 3);
+        gekko_set_local_delay(session, local_player, 2);
 
     struct GameState state = {0};
     for (size_t i = 0; i < num_players; i++) {
@@ -181,11 +162,11 @@ int main(int argc, char** argv) {
         state.pos[i][0] = FfInt(320);
         state.pos[i][1] = FfInt(240);
     }
-    struct GameInput inputs[MAX_PLAYERS] = {0};
+    enum GameInput inputs[MAX_PLAYERS] = {0};
 
-    uint64_t last_time = 0;
+    uint64_t last_time = SDL_GetTicks();
     float ticks = 0;
-    uint64_t tick = 0;
+
     bool running = true;
     while (running) {
         SDL_Event event;
@@ -199,20 +180,24 @@ int main(int argc, char** argv) {
             }
         }
 
+        const float ahead = gekko_frames_ahead(session);
         const uint64_t current_time = SDL_GetTicks();
-        ticks +=
-            (float)(current_time - last_time) * ((float)((gekko_frames_ahead(session) >= 0.75f) ? 51 : 50) / 1000.0f);
+        ticks += (float)(current_time - last_time) * ((60.0f - SDL_clamp(ahead, 0.0f, 2.0f)) / 1000.0f);
         last_time = current_time;
 
         gekko_network_poll(session);
 
         while (ticks >= 1) {
-            struct GameInput input = {0};
+            enum GameInput input = 0;
             const bool* keyboard = SDL_GetKeyboardState(NULL);
-            input.input.move.up = (char)keyboard[SDL_SCANCODE_W];
-            input.input.move.left = (char)keyboard[SDL_SCANCODE_A];
-            input.input.move.down = (char)keyboard[SDL_SCANCODE_S];
-            input.input.move.right = (char)keyboard[SDL_SCANCODE_D];
+            if (keyboard[SDL_SCANCODE_W])
+                input |= GI_UP;
+            if (keyboard[SDL_SCANCODE_A])
+                input |= GI_LEFT;
+            if (keyboard[SDL_SCANCODE_S])
+                input |= GI_DOWN;
+            if (keyboard[SDL_SCANCODE_D])
+                input |= GI_RIGHT;
             gekko_add_local_input(session, local_player, &input);
 
             int count = 0;
@@ -261,8 +246,7 @@ int main(int argc, char** argv) {
                         break;
                     case AdvanceEvent: {
                         for (size_t j = 0; j < num_players; j++)
-                            inputs[j].input.value = event->data.adv.inputs[j];
-                        tick = event->data.adv.frame;
+                            inputs[j] = ((enum GameInput*)(event->data.adv.inputs))[j];
                         tick_state(&state, inputs);
                         break;
                     }
