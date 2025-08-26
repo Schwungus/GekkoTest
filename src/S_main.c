@@ -21,7 +21,7 @@
 #define MAX_PLAYERS 4
 
 struct GameState {
-    bool active[MAX_PLAYERS];
+    uint8_t active[MAX_PLAYERS];
     fix16_t pos[MAX_PLAYERS][2], vel[MAX_PLAYERS][2];
 };
 
@@ -31,6 +31,7 @@ enum GameInput {
     GI_DOWN = 1 << 2,
     GI_RIGHT = 1 << 3,
 };
+typedef uint8_t GameInput;
 
 void save_state(struct GameState* state, GekkoGameEvent* event) {
     *event->data.save.state_len = sizeof(struct GameState);
@@ -42,10 +43,11 @@ void load_state(struct GameState* state, GekkoGameEvent* event) {
     SDL_memcpy(state, event->data.load.state, sizeof(struct GameState));
 }
 
-void tick_state(struct GameState* state, enum GameInput inputs[MAX_PLAYERS]) {
+void tick_state(struct GameState* state, GameInput inputs[MAX_PLAYERS]) {
     for (size_t i = 0; i < MAX_PLAYERS; i++) {
         if (!(state->active[i]))
             continue;
+
         state->vel[i][0] = Fadd(
             Fmul(state->vel[i][0], 0x0000E666),
             FfInt((int8_t)((inputs[i] & GI_RIGHT) == GI_RIGHT) - (int8_t)((inputs[i] & GI_LEFT) == GI_LEFT))
@@ -64,6 +66,7 @@ void draw_state(SDL_Renderer* renderer, struct GameState* state) {
     for (size_t i = 0; i < MAX_PLAYERS; i++) {
         if (!state->active[i])
             continue;
+
         switch (i) {
             default:
                 break;
@@ -80,6 +83,7 @@ void draw_state(SDL_Renderer* renderer, struct GameState* state) {
                 SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
                 break;
         }
+
         SDL_RenderFillRect(
             renderer, &(SDL_FRect){FtFloat(state->pos[i][0]) - 16, FtFloat(state->pos[i][1]) - 16, 32, 32}
         );
@@ -105,11 +109,13 @@ int main(int argc, char** argv) {
 
     if (argc > 1) {
         size_t i = 0;
+
         num_players = SDL_strtol(argv[++i], NULL, 0);
         if (num_players < 1 || num_players > MAX_PLAYERS)
             FATAL("Player amount must be between 1 and %i", MAX_PLAYERS);
         if (argc < 2 + num_players)
             FATAL("Gimme all the IPs");
+
         for (size_t j = 0; j < num_players; j++) {
             char* player = argv[++i];
             if (SDL_strlen(player) <= 5) {
@@ -137,13 +143,15 @@ int main(int argc, char** argv) {
     GekkoSession* session = NULL;
     if (!gekko_create(&session))
         FATAL("gekko_create fail");
+
     GekkoConfig config = {0};
     config.num_players = num_players;
     config.max_spectators = 0;
     config.input_prediction_window = 8;
     config.state_size = sizeof(struct GameState);
-    config.input_size = sizeof(enum GameInput);
+    config.input_size = sizeof(GameInput);
     config.desync_detection = true;
+
     gekko_start(session, &config);
     gekko_net_adapter_set(session, gekko_default_adapter(local_port));
 
@@ -162,7 +170,7 @@ int main(int argc, char** argv) {
         state.pos[i][0] = FfInt(320);
         state.pos[i][1] = FfInt(240);
     }
-    enum GameInput inputs[MAX_PLAYERS] = {0};
+    GameInput inputs[MAX_PLAYERS] = {0};
 
     uint64_t last_time = SDL_GetTicks();
     float ticks = 0;
@@ -188,7 +196,7 @@ int main(int argc, char** argv) {
         gekko_network_poll(session);
 
         while (ticks >= 1) {
-            enum GameInput input = 0;
+            GameInput input = 0;
             const bool* keyboard = SDL_GetKeyboardState(NULL);
             if (keyboard[SDL_SCANCODE_W])
                 input |= GI_UP;
@@ -238,15 +246,18 @@ int main(int argc, char** argv) {
                 switch (event->type) {
                     default:
                         break;
+
                     case SaveEvent:
                         save_state(&state, event);
                         break;
+
                     case LoadEvent:
                         load_state(&state, event);
                         break;
+
                     case AdvanceEvent: {
                         for (size_t j = 0; j < num_players; j++)
-                            inputs[j] = ((enum GameInput*)(event->data.adv.inputs))[j];
+                            inputs[j] = ((GameInput*)(event->data.adv.inputs))[j];
                         tick_state(&state, inputs);
                         break;
                     }
@@ -264,6 +275,7 @@ int main(int argc, char** argv) {
     }
 
     gekko_destroy(session);
+
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

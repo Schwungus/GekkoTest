@@ -17,7 +17,7 @@ set(BUILD_STATIC_LIBS ON)
 include(FetchContent)
 set(FETCHCONTENT_QUIET FALSE)
 
-# SDL3 (3.2.16)
+# SDL3 (3.2.20)
 set(SDL_SHARED OFF)
 set(SDL_STATIC ON)
 set(SDL_TEST_LIBRARY OFF)
@@ -28,12 +28,17 @@ set(SDL_CAMERA OFF)
 FetchContent_Declare(
     SDL3
     GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-    GIT_TAG release-3.2.16
+    GIT_TAG release-3.2.20
 )
 FetchContent_MakeAvailable(SDL3)
 
 # GekkoNet
-add_subdirectory(${CMAKE_SOURCE_DIR}/include/GekkoNet)
+FetchContent_Declare(
+    GekkoNet
+    GIT_REPOSITORY https://github.com/HeatXD/GekkoNet
+    GIT_TAG main
+)
+FetchContent_MakeAvailable(GekkoNet)
 
 # S_fixed
 set(S_FIXED_BUILD_TEST OFF)
@@ -55,11 +60,3 @@ add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 target_include_directories(${PROJECT_NAME} PRIVATE ${SOURCE_DIR})
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBS})
 target_compile_definitions(${PROJECT_NAME} PUBLIC -D_POSIX_C_SOURCE=200112L)
-
-set(MOD_SOURCE_DIR ${CMAKE_SOURCE_DIR}/modsrc)
-add_custom_command(
-    TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}> $<TARGET_FILE_DIR:${PROJECT_NAME}> COMMAND_EXPAND_LISTS
-    COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:${PROJECT_NAME}>/data
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${MOD_SOURCE_DIR} $<TARGET_FILE_DIR:${PROJECT_NAME}>/data
-)
