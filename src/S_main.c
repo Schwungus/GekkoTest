@@ -274,7 +274,7 @@ int main(int argc, char** argv) {
         SDL_RenderPresent(renderer);
     }
 
-    gekko_destroy(session);
+    gekko_destroy(&session);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
