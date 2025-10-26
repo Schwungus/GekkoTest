@@ -36,7 +36,7 @@ FetchContent_MakeAvailable(SDL3)
 FetchContent_Declare(
     GekkoNet
     GIT_REPOSITORY https://github.com/HeatXD/GekkoNet
-    GIT_TAG cc4bfb50c3738d23089c56d6a91c5e45681a28f8
+    GIT_TAG 9460fc61d0570ce02b8118b4e9c356aa79a5ba56
 )
 FetchContent_MakeAvailable(GekkoNet)
 
