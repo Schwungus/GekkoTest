@@ -3,12 +3,16 @@ cmake_minimum_required(VERSION 3.27.0 FATAL_ERROR)
 project(
     lockstep
     VERSION 0.1.0
-    LANGUAGES C
+    LANGUAGES C CXX
 )
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS ON)
 
 # Libraries
 set(BUILD_SHARED_LIBS OFF)
@@ -36,7 +40,7 @@ FetchContent_MakeAvailable(SDL3)
 FetchContent_Declare(
     GekkoNet
     GIT_REPOSITORY https://github.com/HeatXD/GekkoNet
-    GIT_TAG 9460fc61d0570ce02b8118b4e9c356aa79a5ba56
+    GIT_TAG 91469e327534d6c775e40de9a108d5a3cd0e821e
 )
 FetchContent_MakeAvailable(GekkoNet)
 
